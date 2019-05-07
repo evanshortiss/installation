@@ -26,14 +26,16 @@
 - name: "include rhsso vars"
   include_vars: ../../rhsso/defaults/main.yml
 
-- name: Give role-binder role to customer-admin
-  shell: "oc adm policy add-role-to-user role-binder {{ rhsso_evals_admin_username }} --role-namespace={{ fuse_namespace }} -n {{ fuse_namespace }}"
-
 - include_role:
-    name: imagestream_pull_secret
+    name: fuse_pull_secret
   vars:
     namespace: "{{ fuse_namespace }}"
-    product_ns_pull_secret_name: "{{ fuse_pull_secret_name }}"
+
+- name: Add labels to namespace
+  shell: oc label --overwrite namespace {{ fuse_namespace }} {{ monitoring_label_name }}={{ monitoring_label_value }} integreatly-middleware-service=true
+  register: namespace_label
+  failed_when: namespace_label.stderr != '' and 'not labeled' not in namespace_label.stderr
+  changed_when: namespace_label.rc == 0
 
 - name: Create Syndesis CRD
   shell: oc apply -f {{ fuse_online_crd_resources }}

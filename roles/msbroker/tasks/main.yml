@@ -9,4 +9,43 @@
     monitor: true
     is_service: true
 
-- include_tasks: ./apply_msbroker_template.yml
+- include_role:
+    name: fuse_pull_secret
+  vars:
+    namespace: "{{ msbroker_namespace }}"
+  when: fuse_online
+
+- name: Add labels to namespace
+  shell: oc patch ns {{ msbroker_namespace }} --patch '{"metadata":{"labels":{"{{ monitoring_label_name }}":"{{ monitoring_label_value }}", "integreatly-middleware-service":"true"}}}'
+  register: namespace_patch
+  failed_when: namespace_patch.stderr != '' and 'not patched' not in namespace_patch.stderr
+  changed_when: namespace_patch.rc == 0
+
+- name: Create CRDs
+  shell: "oc apply -f {{ item }}"
+  with_items: "{{ msbroker_required_crds }}"
+
+- set_fact:
+    fuse_online_enabled: "true"
+  when: fuse_online
+
+- set_fact:
+    fuse_online_enabled: "false"
+  when: not fuse_online
+
+- name: Create managed service broker template in {{ msbroker_namespace }}
+  shell: oc process -f {{ msbroker_template }} \
+    -p 'NAMESPACE={{ msbroker_namespace }}' \
+    -p 'ROUTE_SUFFIX={{ route_suffix }}' \
+    -p 'LAUNCHER_DASHBOARD_URL={{ launcher_dashboard_url }}' \
+    -p 'CHE_DASHBOARD_URL={{ che_dashboard_url }}' \
+    -p 'THREESCALE_DASHBOARD_URL={{ threescale_dashboard_url }}' \
+    -p 'APICURIO_DASHBOARD_URL={{ apicurito_dashboard_url }}' \
+    -p 'SHARED_FUSE_DASHBOARD_URL={{ fuse_dashboard_url }}' \
+    -p 'SSO_URL=https://{{ sso_route.stdout }}/auth/admin/{{ sso_realm }}/console' \
+    -p 'FUSE_OPERATOR_RESOURCES_URL={{ msbroker_fuse_operator_resources_url }}' \
+    -p 'IMAGE_ORG={{ msbroker_image_org }}' \
+    -p 'IMAGE_TAG={{ msbroker_release_tag }}' \
+    -p 'MONITORING_KEY={{ monitoring_key }}' | oc create -n "{{ msbroker_namespace }}" -f -
+  register: create_msb_resources_cmd
+  failed_when: create_msb_resources_cmd.stderr != '' and 'AlreadyExists' not in create_msb_resources_cmd.stderr
