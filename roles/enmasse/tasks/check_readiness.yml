@@ -1,27 +1,11 @@
 ---
-- name: "Verify EnMasse deployment succeeded"
+-
+  name: "Check Enmasse readiness"
   block:
-    - name: Ensure address space controller pod is ready
-      shell: sleep 5; oc get pod -l name=address-space-controller --namespace {{ enmasse_namespace }}  |  grep  "deploy"
+    - name: "Verify Enmasse is running"
+      shell: oc get pods -o jsonpath='{.items[*].status.containerStatuses[?(@.ready==true)].ready}' -n {{ enmasse_namespace }} | wc -w
       register: result
-      until: not result.stdout
+      until: result.stdout == "8"
       retries: 50
       delay: 10
-      failed_when: result.stdout
-      changed_when: False
-    - name: Ensure api server pod is ready
-      shell: sleep 5; oc get pod -l component=api-server --namespace {{ enmasse_namespace }}  |  grep  "deploy"
-      register: result
-      until: not result.stdout
-      retries: 50
-      delay: 10
-      failed_when: result.stdout
-      changed_when: False
-    - name: Ensure server broker pod is ready
-      shell: sleep 5; oc get pod -l component=service-broker --namespace {{ enmasse_namespace }}  |  grep  "deploy"
-      register: result
-      until: not result.stdout
-      retries: 50
-      delay: 10
-      failed_when: result.stdout
       changed_when: False
