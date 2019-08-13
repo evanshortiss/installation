@@ -4,7 +4,10 @@
   shell: oc version | awk 'NR==1{print substr($2,2)}' | awk '{split($0,a,"."); printf a[1]; printf "."; printf a[2]}'
   register: target_oc_version
 
+- debug:
+    msg: Target is {{target_oc_version}}, supported is {{supported_oc_versions}}
+
 - name: Verify target oc version matches a declared supported version
   fail:
-    msg: "Unsupported oc version {{target_oc_version}} vs {{supported_oc_versions}}"
+    msg: "Unsupported oc version"
   when: target_oc_version.stdout not in supported_oc_versions
