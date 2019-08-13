@@ -6,5 +6,5 @@
 
 - name: Verify target oc version matches a declared supported version
   fail:
-    msg: "Unsupported oc version"
+    msg: "Unsupported oc version {{target_oc_version}} vs {{supported_oc_versions}}"
   when: target_oc_version.stdout not in supported_oc_versions
